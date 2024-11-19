@@ -1,0 +1,194 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+typedef struct {
+    int codigo;
+    char titulo[50];
+    char autor[50];
+    int ano;
+} Livro;
+
+void adicionarLivro(FILE *arquivo) {
+    Livro livro;
+
+    printf("Digite o código do livro: ");
+    scanf("%d", &livro.codigo);
+
+    printf("Digite o título: ");
+    getchar(); // Limpa o buffer
+    fgets(livro.titulo, sizeof(livro.titulo), stdin);
+    livro.titulo[strcspn(livro.titulo, "\n")] = '\0'; // Remove o '\n'
+
+    printf("Digite o autor: ");
+    fgets(livro.autor, sizeof(livro.autor), stdin);
+    livro.autor[strcspn(livro.autor, "\n")] = '\0';
+
+    printf("Digite o ano de publicação: ");
+    scanf("%d", &livro.ano);
+
+    fseek(arquivo, 0, SEEK_END); // Posiciona no final do arquivo
+    fwrite(&livro, sizeof(Livro), 1, arquivo);
+
+    printf("Livro adicionado com sucesso!\n");
+}
+
+void alterarLivro(FILE *arquivo) {
+    int codigo, encontrado = 0;
+    Livro livro;
+
+    printf("Digite o código do livro a ser alterado: ");
+    scanf("%d", &codigo);
+
+    fseek(arquivo, 0, SEEK_SET);
+    while (fread(&livro, sizeof(Livro), 1, arquivo)) {
+        if (livro.codigo == codigo) {
+            encontrado = 1;
+            printf("Digite o novo título (atual: %s): ", livro.titulo);
+            getchar();
+            fgets(livro.titulo, sizeof(livro.titulo), stdin);
+            livro.titulo[strcspn(livro.titulo, "\n")] = '\0';
+
+            printf("Digite o novo autor (atual: %s): ", livro.autor);
+            fgets(livro.autor, sizeof(livro.autor), stdin);
+            livro.autor[strcspn(livro.autor, "\n")] = '\0';
+
+            printf("Digite o novo ano de publicação (atual: %d): ", livro.ano);
+            scanf("%d", &livro.ano);
+
+            fseek(arquivo, -sizeof(Livro), SEEK_CUR);
+            fwrite(&livro, sizeof(Livro), 1, arquivo);
+            printf("Informações do livro atualizadas com sucesso!\n");
+            break;
+        }
+    }
+
+    if (!encontrado) {
+        printf("Livro não encontrado!\n");
+    }
+}
+
+void excluirLivro(FILE *arquivo) {
+    int codigo, encontrado = 0;
+    FILE *temp = fopen("temp.dat", "wb");
+    Livro livro;
+
+    if (!temp) {
+        printf("Erro ao criar arquivo temporário!\n");
+        return;
+    }
+
+    printf("Digite o código do livro a ser excluído: ");
+    scanf("%d", &codigo);
+
+    fseek(arquivo, 0, SEEK_SET);
+    while (fread(&livro, sizeof(Livro), 1, arquivo)) {
+        if (livro.codigo == codigo) {
+            encontrado = 1;
+            printf("Livro excluído com sucesso!\n");
+        } else {
+            fwrite(&livro, sizeof(Livro), 1, temp);
+        }
+    }
+
+    fclose(arquivo);
+    fclose(temp);
+    remove("livros.dat");
+    rename("temp.dat", "livros.dat");
+
+    if (!encontrado) {
+        printf("Livro não encontrado!\n");
+    }
+}
+
+void consultarLivro(FILE *arquivo) {
+    int codigo, encontrado = 0;
+    Livro livro;
+
+    printf("Digite o código do livro: ");
+    scanf("%d", &codigo);
+
+    fseek(arquivo, 0, SEEK_SET);
+    while (fread(&livro, sizeof(Livro), 1, arquivo)) {
+        if (livro.codigo == codigo) {
+            encontrado = 1;
+            printf("Código: %d\n", livro.codigo);
+            printf("Título: %s\n", livro.titulo);
+            printf("Autor: %s\n", livro.autor);
+            printf("Ano de publicação: %d\n", livro.ano);
+            break;
+        }
+    }
+
+    if (!encontrado) {
+        printf("Livro não encontrado!\n");
+    }
+}
+
+void listarLivros(FILE *arquivo) {
+    Livro livro;
+
+    fseek(arquivo, 0, SEEK_SET);
+    printf("Lista de livros cadastrados:\n");
+    printf("-----------------------------------\n");
+
+    while (fread(&livro, sizeof(Livro), 1, arquivo)) {
+        printf("Código: %d\n", livro.codigo);
+        printf("Título: %s\n", livro.titulo);
+        printf("Autor: %s\n", livro.autor);
+        printf("Ano de publicação: %d\n", livro.ano);
+        printf("-----------------------------------\n");
+    }
+}
+
+int main() {
+    FILE *arquivo;
+    int opcao;
+
+    arquivo = fopen("livros.dat", "rb+");
+    if (!arquivo) {
+        arquivo = fopen("livros.dat", "wb+");
+        if (!arquivo) {
+            printf("Erro ao abrir/criar o arquivo!\n");
+            return 1;
+        }
+    }
+
+    do {
+        printf("\n--- Sistema de Gerenciamento de Livros ---\n");
+        printf("1. Adicionar um novo livro ao catálogo\n");
+        printf("2. Alterar os dados de um livro\n");
+        printf("3. Excluir um livro pelo código\n");
+        printf("4. Consultar informações de um livro pelo código\n");
+        printf("5. Listar todos os livros cadastrados\n");
+        printf("6. Sair\n");
+        printf("Escolha uma opção: ");
+        scanf("%d", &opcao);
+
+        switch (opcao) {
+            case 1:
+                adicionarLivro(arquivo);
+                break;
+            case 2:
+                alterarLivro(arquivo);
+                break;
+            case 3:
+                excluirLivro(arquivo);
+                break;
+            case 4:
+                consultarLivro(arquivo);
+                break;
+            case 5:
+                listarLivros(arquivo);
+                break;
+            case 6:
+                printf("Encerrando o programa...\n");
+                break;
+            default:
+                printf("Opção inválida!\n");
+        }
+    } while (opcao != 6);
+
+    fclose(arquivo);
+    return 0;
+}
