@@ -1,0 +1,190 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+typedef struct {
+    int id;
+    char nome[50];
+    char cargo[30];
+    int salario;
+} Funcionario;
+
+void cadastrarFuncionario(FILE *arquivo) {
+    Funcionario funcionario;
+
+    printf("Digite o ID do funcionário: ");
+    scanf("%d", &funcionario.id);
+
+    printf("Digite o nome: ");
+    getchar(); // Limpa o buffer
+    fgets(funcionario.nome, sizeof(funcionario.nome), stdin);
+    funcionario.nome[strcspn(funcionario.nome, "\n")] = '\0'; // Remove o '\n'
+
+    printf("Digite o cargo: ");
+    fgets(funcionario.cargo, sizeof(funcionario.cargo), stdin);
+    funcionario.cargo[strcspn(funcionario.cargo, "\n")] = '\0';
+
+    printf("Digite o salário: ");
+    scanf("%d", &funcionario.salario);
+
+    fseek(arquivo, 0, SEEK_END); // Posiciona no final do arquivo
+    fwrite(&funcionario, sizeof(Funcionario), 1, arquivo);
+
+    printf("Funcionário cadastrado com sucesso!\n");
+}
+
+void alterarFuncionario(FILE *arquivo) {
+    int id, encontrado = 0;
+    Funcionario funcionario;
+
+    printf("Digite o ID do funcionário a ser alterado: ");
+    scanf("%d", &id);
+
+    fseek(arquivo, 0, SEEK_SET);
+    while (fread(&funcionario, sizeof(Funcionario), 1, arquivo)) {
+        if (funcionario.id == id) {
+            encontrado = 1;
+            printf("Digite o novo cargo (atual: %s): ", funcionario.cargo);
+            getchar();
+            fgets(funcionario.cargo, sizeof(funcionario.cargo), stdin);
+            funcionario.cargo[strcspn(funcionario.cargo, "\n")] = '\0';
+
+            printf("Digite o novo salário (atual: %d): ", funcionario.salario);
+            scanf("%d", &funcionario.salario);
+
+            fseek(arquivo, -sizeof(Funcionario), SEEK_CUR);
+            fwrite(&funcionario, sizeof(Funcionario), 1, arquivo);
+            printf("Informações do funcionário atualizadas com sucesso!\n");
+            break;
+        }
+    }
+
+    if (!encontrado) {
+        printf("Funcionário não encontrado!\n");
+    }
+}
+
+void excluirFuncionario(FILE *arquivo) {
+    int id, encontrado = 0;
+    FILE *temp = fopen("temp.dat", "wb");
+    Funcionario funcionario;
+
+    if (!temp) {
+        printf("Erro ao criar arquivo temporário!\n");
+        return;
+    }
+
+    printf("Digite o ID do funcionário a ser excluído: ");
+    scanf("%d", &id);
+
+    fseek(arquivo, 0, SEEK_SET);
+    while (fread(&funcionario, sizeof(Funcionario), 1, arquivo)) {
+        if (funcionario.id == id) {
+            encontrado = 1;
+            printf("Funcionário excluído com sucesso!\n");
+        } else {
+            fwrite(&funcionario, sizeof(Funcionario), 1, temp);
+        }
+    }
+
+    fclose(arquivo);
+    fclose(temp);
+    remove("funcionarios.dat");
+    rename("temp.dat", "funcionarios.dat");
+
+    if (!encontrado) {
+        printf("Funcionário não encontrado!\n");
+    }
+}
+
+void consultarFuncionario(FILE *arquivo) {
+    int id, encontrado = 0;
+    Funcionario funcionario;
+
+    printf("Digite o ID do funcionário: ");
+    scanf("%d", &id);
+
+    fseek(arquivo, 0, SEEK_SET);
+    while (fread(&funcionario, sizeof(Funcionario), 1, arquivo)) {
+        if (funcionario.id == id) {
+            encontrado = 1;
+            printf("ID: %d\n", funcionario.id);
+            printf("Nome: %s\n", funcionario.nome);
+            printf("Cargo: %s\n", funcionario.cargo);
+            printf("Salário: R$%d\n", funcionario.salario);
+            break;
+        }
+    }
+
+    if (!encontrado) {
+        printf("Funcionário não encontrado!\n");
+    }
+}
+
+void listarFuncionarios(FILE *arquivo) {
+    Funcionario funcionario;
+
+    fseek(arquivo, 0, SEEK_SET);
+    printf("Lista de funcionários cadastrados:\n");
+    printf("-----------------------------------\n");
+
+    while (fread(&funcionario, sizeof(Funcionario), 1, arquivo)) {
+        printf("ID: %d\n", funcionario.id);
+        printf("Nome: %s\n", funcionario.nome);
+        printf("Cargo: %s\n", funcionario.cargo);
+        printf("Salário: R$%d\n", funcionario.salario);
+        printf("-----------------------------------\n");
+    }
+}
+
+int main() {
+    FILE *arquivo;
+    int opcao;
+
+    arquivo = fopen("funcionarios.dat", "rb+");
+    if (!arquivo) {
+        arquivo = fopen("funcionarios.dat", "wb+");
+        if (!arquivo) {
+            printf("Erro ao abrir/criar o arquivo!\n");
+            return 1;
+        }
+    }
+
+    do {
+        printf("\n--- Sistema de Cadastro de Funcionários ---\n");
+        printf("1. Cadastrar um novo funcionário\n");
+        printf("2. Alterar dados de um funcionário\n");
+        printf("3. Excluir um funcionário pelo ID\n");
+        printf("4. Consultar informações de um funcionário pelo ID\n");
+        printf("5. Listar todos os funcionários cadastrados\n");
+        printf("6. Sair\n");
+        printf("Escolha uma opção: ");
+        scanf("%d", &opcao);
+
+        switch (opcao) {
+            case 1:
+                cadastrarFuncionario(arquivo);
+                break;
+            case 2:
+                alterarFuncionario(arquivo);
+                break;
+            case 3:
+                excluirFuncionario(arquivo);
+                break;
+            case 4:
+                consultarFuncionario(arquivo);
+                break;
+            case 5:
+                listarFuncionarios(arquivo);
+                break;
+            case 6:
+                printf("Encerrando o programa...\n");
+                break;
+            default:
+                printf("Opção inválida!\n");
+        }
+    } while (opcao != 6);
+
+    fclose(arquivo);
+    return 0;
+}
